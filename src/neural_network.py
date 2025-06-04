@@ -39,25 +39,6 @@ class NeuralNetwork:
     def train(self, X, Y, epochs, lr):
         ...
 
-
-class ProblemType(Enum):
-    Regression = 0
-    BinaryClassification = 1
-    MulticlassClassification = 2
-
-
-class Activation(Enum):
-    Linear = 0  # (no activation)
-    Sigmoid = 1
-    Softmax = 2
-
-
-class Loss(Enum):
-    Mse = 0  # mean square error
-    BinaryCrossEntropy = 1
-    CrossEntropy = 2
-
-
 # activation_to_loss = {
 #     Activation.Linear.value: Loss.Mse.value,
 #     Activation.Sigmoid.value: Loss.BinaryCrossEntropy.value,
