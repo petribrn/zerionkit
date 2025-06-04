@@ -1,4 +1,4 @@
-from enum import Enum
+import numpy as np
 
 
 class NeuralNetwork:
@@ -26,22 +26,27 @@ class NeuralNetwork:
     # - Apply activation function to each of the dot product results, to make it non-linear (if activation != Linear);
     # - Repeat this process until it gets the output layer outputs;
     def forward(self, inputs: list[float]) -> list[float]:
-        ...
+        v: list[float] = np.dot(inputToHidden1InitialWeights, inputs)
+
+        # y = sigmoid(v)
+
+        return v  # y
 
     # - Calculate loss based on the predicted y and correct y
     # - Calculate gradient descent to get the direction (value) where the error decreases
     # - Calculate the new bias and weights for next iteration
     # - Backpropagate the weights
-    def backpropagation(self, y_correct, y_predicted):
+    def backpropagation(self, y_predict, y_target):
         ...
 
     # Run all together
     def train(self, X, Y, epochs, lr):
         ...
 
+
 # activation_to_loss = {
 #     Activation.Linear.value: Loss.Mse.value,
-#     Activation.Sigmoid.value: Loss.BinaryCrossEntropy.value,
+#     Activation.Sigmoid.value: Loss.CrossEntropy.value,
 #     Activation.Softmax.value: Loss.CrossEntropy.value,
 # }
 
