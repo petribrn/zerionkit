@@ -1,5 +1,7 @@
 import numpy as np
 
+from main import input_layer_size, hidden_layer_size, output_layer_size
+
 
 class NeuralNetwork:
     def __init__(
@@ -50,6 +52,15 @@ class NeuralNetwork:
 #     Activation.Softmax.value: Loss.CrossEntropy.value,
 # }
 
-inputToHidden1InitialWeights = list(list())
-hidden1ToHidden2InitialWeights = list(list())
-hidden2ToOutputInitialWeights = list(list())
+inputToHidden1InitialWeights: list[list[float]] = (
+    np.random.uniform(low=1, high=101, size=(hidden_layer_size, input_layer_size)).tolist()
+)
+hidden1ToOutputInitialWeights: list[list[float]] = (
+    np.random.uniform(low=1, high=101, size=(output_layer_size, hidden_layer_size)).tolist()
+)
+
+# inputToHidden1InitialWeights:
+# [b1, w11, w12, w13, w14]
+# [b2, w21, w22, w23, w24]
+# [b3, w31, w32, w33, w34]
+# [b4, w41, w42, w43, w44]
