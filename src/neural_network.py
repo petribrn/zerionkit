@@ -1,6 +1,7 @@
-import numpy as np
 import math
 from typing import Literal
+
+import numpy as np
 
 
 class NeuralNetwork:
@@ -29,21 +30,56 @@ class NeuralNetwork:
     # - Repeat this process until it gets the output layer outputs;
     def forward_pass(self, inputs: list[float]) -> list[float]:
         print("Input layer neurons")
-        for i, input in enumerate(inputs):
-            print(f"x{i}: {input}")
+        for c, input in enumerate(inputs):
+            print(f"x{c}: {input}")
 
         print('-----')
 
+        current_y: list[float] = inputs
+        all_layers_sizes = [self.input_layer_size] + self.hidden_layers_sizes + [self.output_layer_size]
+
+        i = 0
+        while i < len(all_layers_sizes) - 1:
+            current_y = [1] + current_y
+
+            # Adds 1 for the bias
+            current_layer_size = all_layers_sizes[i] + 1
+            next_layer_size = all_layers_sizes[i + 1]
+
+            next_layer_weights = self.get_next_layer_weights(
+                current_layer_size=current_layer_size,
+                next_layer_size=next_layer_size,
+            )
+
+            v: list[float] = np.dot(next_layer_weights, current_y)
+            normalized_v: list[float] = [vi / 1000 for vi in v]
+
+            for j, v_number in enumerate(normalized_v):
+                print(f"v{j}: {v_number}")
+
+            print("-----")
+
+            current_y = self.activation_function(normalized_v)
+            print(f'ŷ: {current_y}')
+            print("-----")
+
+            i += 1
+
+        return current_y
+
+    def get_next_layer_weights(self, current_layer_size: int, next_layer_size: int) -> list[list[float]]:
+        print("Generating layer weights")
+
         # size = matrix (rows, columns)
-        input_to_hidden1_initial_weights: list[list[float]] = (
+        next_layer_weights: list[list[float]] = (
             np.random.uniform(
                 low=1,
                 high=101,
-                size=(self.hidden_layers_sizes[0], self.input_layer_size + 1) # Adds 1 for the bias
+                size=(next_layer_size, current_layer_size)
             ).tolist()
         )
 
-        for i, hidden in enumerate(input_to_hidden1_initial_weights):
+        for i, hidden in enumerate(next_layer_weights):
             for j, input_weight in enumerate(hidden):
                 if j == 0:
                     print(f"b{i}: {input_weight}")
@@ -52,24 +88,13 @@ class NeuralNetwork:
 
             print("-----")
 
-        v: list[float] = np.dot(input_to_hidden1_initial_weights, inputs)
-        normalized_v = [vi / 1000 for vi in v]
-
-        for i, v_number in enumerate(normalized_v):
-            print(f"v{i}: {v_number}")
-
-        print("-----")
-
-        y = self.activation_function(normalized_v)
-        print(y)
-
-        return y
+        return next_layer_weights
 
     # - Calculate loss based on the predicted y and correct y
     # - Calculate gradient descent to get the direction (value) where the error decreases
     # - Calculate the new bias and weights for next iteration
     # - Backpropagate the weights
-    def back_propagation(self, y_predict, y_target):
+    def back_propagation(self, y_predict: list[float], y_target: list[float]):
         ...
 
     # Run all together
@@ -82,6 +107,7 @@ class NeuralNetwork:
 
             Implements activation functions methods of the neural network core.
         """
+
         @staticmethod
         def linear(x: list[float]) -> list[float]:
             return x
