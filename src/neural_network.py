@@ -1,5 +1,9 @@
 import math
+from re import match
 from typing import Literal
+
+from src.configs.constants import Constants
+from src.data_handler import DataHandler
 
 import numpy as np
 
@@ -28,19 +32,19 @@ class NeuralNetwork:
 
     # - Apply activation function to each of the dot product results, to make it non-linear (if activation != Linear);
     # - Repeat this process until it gets the output layer outputs;
-    def forward_pass(self, inputs: list[float]) -> list[float]:
+    def forward_pass(self, x: list[float]) -> list[float]:
         print("Input layer neurons")
-        for c, input in enumerate(inputs):
+        for c, input in enumerate(x):
             print(f"x{c}: {input}")
 
         print('-----')
 
-        current_y: list[float] = inputs
+        y_predict: list[float] = x
         all_layers_sizes = [self.input_layer_size] + self.hidden_layers_sizes + [self.output_layer_size]
 
         i = 0
         while i < len(all_layers_sizes) - 1:
-            current_y = [1] + current_y
+            y_predict = [1] + y_predict
 
             # Adds 1 for the bias
             current_layer_size = all_layers_sizes[i] + 1
@@ -51,7 +55,7 @@ class NeuralNetwork:
                 next_layer_size=next_layer_size,
             )
 
-            v: list[float] = np.dot(next_layer_weights, current_y)
+            v: list[float] = np.dot(next_layer_weights, y_predict)
             normalized_v: list[float] = [vi / 1000 for vi in v]
 
             for j, v_number in enumerate(normalized_v):
@@ -59,13 +63,13 @@ class NeuralNetwork:
 
             print("-----")
 
-            current_y = self.activation_function(normalized_v)
-            print(f'ŷ: {current_y}')
+            y_predict = self.activation_function(normalized_v)
+            print(f'ŷ: {y_predict}')
             print("-----")
 
             i += 1
 
-        return current_y
+        return y_predict
 
     def get_next_layer_weights(self, current_layer_size: int, next_layer_size: int) -> list[list[float]]:
         print("Generating layer weights")
