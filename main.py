@@ -37,6 +37,6 @@ if __name__ == '__main__':
         data_source_filename='students.csv',
         y_target_column_name='Target',
     )
-
-    print(data_handler.dataframe.head())
+    print(data_handler.processed_data[0]) # inputs: x
+    print(data_handler.processed_data[1]) # targets: y
     # main()
