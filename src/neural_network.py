@@ -1,9 +1,5 @@
 import math
-from re import match
 from typing import Literal
-
-from src.configs.constants import Constants
-from src.data_handler import DataHandler
 
 import numpy as np
 
@@ -16,7 +12,7 @@ class NeuralNetwork:
             output_layer_size: int,
             problem_type: Literal['regression', 'binary_class', 'multi_class'],
             activation: Literal['linear', 'sigmoid', 'softmax'],
-            loss: Literal['mse', 'cross_entropy'],
+            loss: Literal['square_error', 'binary_cross_entropy', 'cross_entropy'],
     ):
         self.input_layer_size = input_layer_size
         self.hidden_layers_sizes = hidden_layers_sizes
@@ -25,6 +21,19 @@ class NeuralNetwork:
         self.activation_function = self.Activation.get_activation_func(activation)
         self.loss = loss
 
+    def train_on_iteration(
+            self,
+            x: list[float],
+            y_target: float,
+    ) -> list[float]:
+        y_predict_raw: list[float] = self.__forward_pass(x=x)
+
+        error: float = self.__apply_loss(y_predict_raw=y_predict_raw, y_target=y_target)
+
+        new_parameters: list[float] = self.__back_propagation(error=error)
+
+        return new_parameters
+
     # - Apply dot product (produto escalar) between input array (column size 1, row size "input_layer_size") and weight
     # matrix (wT) (row size "input_layer_size", column size "hidden_layers_sizes[i]" or "output_layer_size"). Each weight is a connection
     # between an input neuron and a hidden (or output, if zero hidden layers) neuron. The input array starts with a 1
@@ -32,7 +41,7 @@ class NeuralNetwork:
 
     # - Apply activation function to each of the dot product results, to make it non-linear (if activation != Linear);
     # - Repeat this process until it gets the output layer outputs;
-    def forward_pass(self, x: list[float]) -> list[float]:
+    def __forward_pass(self, x: list[float]) -> list[float]:
         print("Input layer neurons")
         for c, input in enumerate(x):
             print(f"x{c}: {input}")
@@ -50,7 +59,7 @@ class NeuralNetwork:
             current_layer_size = all_layers_sizes[i] + 1
             next_layer_size = all_layers_sizes[i + 1]
 
-            next_layer_weights = self.get_next_layer_weights(
+            next_layer_weights = self.__get_next_layer_weights(
                 current_layer_size=current_layer_size,
                 next_layer_size=next_layer_size,
             )
@@ -71,38 +80,63 @@ class NeuralNetwork:
 
         return y_predict
 
-    def get_next_layer_weights(self, current_layer_size: int, next_layer_size: int) -> list[list[float]]:
+    def __get_next_layer_weights(
+            self,
+            current_layer_size: int,
+            next_layer_size: int,
+    ) -> list[list[float]]:
         print("Generating layer weights")
 
         # size = matrix (rows, columns)
         next_layer_weights: list[list[float]] = (
             np.random.uniform(
-                low=1,
-                high=101,
+                low=0.1,
+                high=1,
                 size=(next_layer_size, current_layer_size)
             ).tolist()
         )
 
-        for i, hidden in enumerate(next_layer_weights):
-            for j, input_weight in enumerate(hidden):
-                if j == 0:
-                    print(f"b{i}: {input_weight}")
-                else:
-                    print(f"w{i}{j}: {input_weight}")
-
-            print("-----")
+        # for i, hidden in enumerate(next_layer_weights):
+        #     for j, input_weight in enumerate(hidden):
+        #         if j == 0:
+        #             print(f"b{i}: {input_weight}")
+        #         else:
+        #             print(f"w{i}{j}: {input_weight}")
+        #
+        #     print("-----")
 
         return next_layer_weights
+
+    def __apply_loss(
+            self,
+            y_predict_raw: list[float],
+            y_target: float | list[float],
+    ) -> float:
+        error = 0.0
+
+        match self.problem_type:
+            case 'regression':
+                error = (y_target - y_predict_raw[0]) ** 2
+            case 'binary_class':
+                eps = 1e-15  # avoid log(0)
+                y_predict = max(min(y_predict_raw[0], 1 - eps), eps)
+
+                error = - (y_target * math.log(y_predict) + (1 - y_target) * math.log(1 - y_predict))
+            case 'multi_class':
+                eps = 1e-15  # avoid log(0)
+                y_predict = [max(min(y_predict_raw_i, 1 - eps), eps) for y_predict_raw_i in y_predict_raw]
+
+                error = - sum(
+                    y_target_i * math.log(y_predict_i) for y_target_i, y_predict_i in zip(y_target, y_predict)
+                )
+
+        return error
 
     # - Calculate loss based on the predicted y and correct y
     # - Calculate gradient descent to get the direction (value) where the error decreases
     # - Calculate the new bias and weights for next iteration
     # - Backpropagate the weights
-    def back_propagation(self, y_predict: list[float], y_target: list[float]):
-        ...
-
-    # Run all together
-    def train(self, X, Y, epochs, lr):
+    def __back_propagation(self, error: float) -> list[float]:
         ...
 
     class Activation:
