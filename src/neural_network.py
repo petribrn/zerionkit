@@ -13,6 +13,7 @@ class NeuralNetwork:
             problem_type: Literal['regression', 'binary_class', 'multi_class'],
             activation: Literal['linear', 'sigmoid', 'softmax'],
             loss: Literal['square_error', 'binary_cross_entropy', 'cross_entropy'],
+            learning_rate: float,
     ):
         self.input_layer_size = input_layer_size
         self.hidden_layers_sizes = hidden_layers_sizes
@@ -20,6 +21,7 @@ class NeuralNetwork:
         self.problem_type = problem_type
         self.activation_function = self.Activation.get_activation_func(activation)
         self.loss = loss
+        self.learning_rate = learning_rate
 
     def train_on_iteration(
             self,

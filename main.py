@@ -29,6 +29,7 @@ def main():
         problem_type='binary_class',
         activation='sigmoid',
         loss='binary_cross_entropy',
+        learning_rate=0.5,
     )
 
     for n, y_target in enumerate(y_targets):
