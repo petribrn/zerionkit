@@ -14,14 +14,16 @@ def main():
     #     y_target_column_name='Target',
     # )
 
-    x: list[list[float]] = list(np.random.uniform(low=1, high=101, size=input_layer_size))  # inputs: x
-    y_targets: list[float] = [0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0]  # targets: y
+    x: list[list[float]] = [
+        list(np.random.uniform(low=1, high=101, size=input_layer_size)) for _ in range(0, 10)
+    ] # inputs
+    y_targets: list[float] = [0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0] # target outputs
 
     print(x)
     print(y_targets)
 
     neural_network = NeuralNetwork(
-        input_layer_size=len(x[0]),
+        input_layer_size=input_layer_size,
         hidden_layers_sizes=hidden_layer_sizes,
         output_layer_size=output_layer_size,
         problem_type='binary_class',

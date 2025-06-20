@@ -118,13 +118,17 @@ class NeuralNetwork:
             case 'regression':
                 error = (y_target - y_predict_raw[0]) ** 2
             case 'binary_class':
+                y_predict_binary = 0.0 if y_predict_raw[0] < 0.5 else 1.0
+
                 eps = 1e-15  # avoid log(0)
-                y_predict = max(min(y_predict_raw[0], 1 - eps), eps)
+                y_predict = max(min(y_predict_binary, 1 - eps), eps)
 
                 error = - (y_target * math.log(y_predict) + (1 - y_target) * math.log(1 - y_predict))
             case 'multi_class':
+                y_predict_binaries = [0.0 if y_predict_raw_i < 0.5 else 1.0 for y_predict_raw_i in y_predict_raw]
+
                 eps = 1e-15  # avoid log(0)
-                y_predict = [max(min(y_predict_raw_i, 1 - eps), eps) for y_predict_raw_i in y_predict_raw]
+                y_predict = [max(min(y_predict_bin_i, 1 - eps), eps) for y_predict_bin_i in y_predict_binaries]
 
                 error = - sum(
                     y_target_i * math.log(y_predict_i) for y_target_i, y_predict_i in zip(y_target, y_predict)
