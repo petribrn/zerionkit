@@ -22,7 +22,7 @@ class DataHandler:
             filepath_or_buffer=f'{Constants.DATA_DIRECTORY}/{self.__get_problem_type_data_path()}/{self.filename}',
             header=0,
             delimiter=Constants.CSV_DELIMITER,
-        )
+        ).head(1) # TODO: REMOVE LATER!!!! JUST FOR TEMPORARY TESTING
 
     def __get_problem_type_data_path(self) -> str:
         match self.problem_type:
