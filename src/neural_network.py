@@ -21,26 +21,34 @@ class NeuralNetwork:
         self.problem_type = problem_type
         self.activation_function = self.Activation.get_activation_func(activation)
         self.loss = loss
+
+        if learning_rate < 0.0 or learning_rate < 1.0:
+            raise Exception()
         self.learning_rate = learning_rate
 
-    def train_on_iteration(
+    def train(
             self,
-            x: list[float],
-            y_target: float,
-    ) -> list[float]:
-        y_predict_raw: list[float] = self.__forward_pass(x=x)
+            x: list[list[float]],
+            y_target: dict[str, list[float]],
+    ):
+        if len(x) == 0 or len(y_target.values()) == 0:
+            raise Exception()
 
-        error: float = self.__apply_loss(y_predict_raw=y_predict_raw, y_target=y_target)
+        n = len(x)
 
-        new_parameters: list[float] = self.__back_propagation(error=error)
+        for i in range(0, n):
+            y_predict: list[float] = self.__forward_pass(x=x[i])
+            y_target_for_i = [dict(zip(y_target.keys(), values)) for values in zip(*y_target.values())][i]
 
-        return new_parameters
+            # output layer error gradients
+            y_error_gradients: list[float] = self.__apply_loss(
+                y_predict=y_predict,
+                y_target=[y_target_for_i[sorted(y_target_for_i.keys())[0]]],
+            )
 
-    # - Apply dot product (produto escalar) between input array (column size 1, row size "input_layer_size") and weight
-    # matrix (wT) (row size "input_layer_size", column size "hidden_layers_sizes[i]" or "output_layer_size"). Each weight is a connection
-    # between an input neuron and a hidden (or output, if zero hidden layers) neuron. The input array starts with a 1
-    # for the Bias b. The dot product will output an array of linear float values (column size 1, row size "hidden_layers_sizes[i]" or "output_layer_size").
+            self.__back_propagation(y_error_gradients=y_error_gradients)
 
+    # - Apply a dot product between layers arrays and their respective weight matrix (wT).
     # - Apply activation function to each of the dot product results, to make it non-linear (if activation != Linear);
     # - Repeat this process until it gets the output layer outputs;
     def __forward_pass(self, x: list[float]) -> list[float]:
@@ -69,10 +77,10 @@ class NeuralNetwork:
             v: list[float] = np.dot(next_layer_weights, y_predict)
             normalized_v: list[float] = [vi / 1000 for vi in v]
 
-            for j, v_number in enumerate(normalized_v):
-                print(f"v{j}: {v_number}")
-
-            print("-----")
+            # for j, v_number in enumerate(normalized_v):
+            #     print(f"v{j}: {v_number}")
+            #
+            # print("-----")
 
             y_predict = self.activation_function(normalized_v)
             print(f'ŷ: {y_predict}')
@@ -109,40 +117,37 @@ class NeuralNetwork:
 
         return next_layer_weights
 
+    # - Calculate the output layer error gradient given y predict and y target, to get the y value
+    # in which the error most increases.
     def __apply_loss(
             self,
-            y_predict_raw: list[float],
-            y_target: float | list[float],
-    ) -> float:
-        error = 0.0
+            y_predict: list[float],
+            y_target: list[float],
+    ) -> list[float]:
+        d_error = []
 
         match self.problem_type:
             case 'regression':
-                error = (y_target - y_predict_raw[0]) ** 2
+                d_error = self.Loss.Mse.derivative(
+                    y_predict=y_predict[0],
+                    y_target=y_target[0],
+                )
             case 'binary_class':
-                y_predict_binary = 0.0 if y_predict_raw[0] < 0.5 else 1.0
-
-                eps = 1e-15  # avoid log(0)
-                y_predict = max(min(y_predict_binary, 1 - eps), eps)
-
-                error = - (y_target * math.log(y_predict) + (1 - y_target) * math.log(1 - y_predict))
+                d_error = self.Loss.BinaryCrossEntropy.derivative(
+                    y_predict=y_predict[0],
+                    y_target=y_target[0],
+                )
             case 'multi_class':
-                y_predict_binaries = [0.0 if y_predict_raw_i < 0.5 else 1.0 for y_predict_raw_i in y_predict_raw]
-
-                eps = 1e-15  # avoid log(0)
-                y_predict = [max(min(y_predict_bin_i, 1 - eps), eps) for y_predict_bin_i in y_predict_binaries]
-
-                error = - sum(
-                    y_target_i * math.log(y_predict_i) for y_target_i, y_predict_i in zip(y_target, y_predict)
+                d_error = self.Loss.MultiClassCrossEntropy.derivative(
+                    y_predict=y_predict,
+                    y_target=y_target,
                 )
 
-        return error
+        return d_error
 
-    # - Calculate loss based on the predicted y and correct y
-    # - Calculate gradient descent to get the direction (value) where the error decreases
+    # - Backpropagate the y error gradients to previous layers
     # - Calculate the new bias and weights for next iteration
-    # - Backpropagate the weights
-    def __back_propagation(self, error: float) -> list[float]:
+    def __back_propagation(self, y_error_gradients: list[float]) -> list[float]:
         ...
 
     class Activation:
@@ -176,3 +181,54 @@ class NeuralNetwork:
                     return cls.softmax
                 case _:
                     return None
+
+    class Loss:
+        class Mse:
+            @staticmethod
+            def main(y_predict: float, y_target: float) -> list[float]:
+                return [(y_target - y_predict) ** 2]
+
+            @staticmethod
+            def derivative(y_predict: float, y_target: float) -> list[float]:
+                return [y_predict - y_target]
+
+        class BinaryCrossEntropy:
+            @staticmethod
+            def main(y_predict: float, y_target: float) -> list[float]:
+                y_predict_norm = normalize_y_for_classification(y_predict)
+
+                return [
+                    - (y_target * math.log(y_predict_norm) + (1 - y_target) * math.log(1 - y_predict_norm))
+                ]
+
+            @staticmethod
+            def derivative(y_predict: float, y_target: float) -> list[float]:
+                y_predict_norm = normalize_y_for_classification(y_predict)
+
+                return [
+                    - (y_target / y_predict_norm) + (1 - y_target) / (1 - y_predict_norm)
+                ]
+
+        class MultiClassCrossEntropy:
+            @staticmethod
+            def main(y_predict: list[float], y_target: list[float]) -> list[float]:
+                y_predict_norm = [normalize_y_for_classification(y_p_r) for y_p_r in y_predict]
+
+                return [
+                    - sum(
+                        y_t * math.log(y_p) for y_t, y_p in zip(y_target, y_predict_norm)
+                    )
+                ]
+
+            @staticmethod
+            def derivative(y_predict: list[float], y_target: list[float]) -> list[float]:
+                y_predict_norm = [normalize_y_for_classification(y_p_r) for y_p_r in y_predict]
+
+                return [
+                    - (y_t / y_p) for y_t, y_p in zip(y_target, y_predict_norm)
+                ]
+
+
+def normalize_y_for_classification(y_predict: float) -> float:
+    eps = 1e-15  # avoid log(0)
+    return max(min(y_predict, 1 - eps), eps)

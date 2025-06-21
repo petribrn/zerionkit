@@ -1,7 +1,5 @@
-import numpy as np
-
-from src.neural_network import NeuralNetwork
 from src.data_handler import DataHandler
+from src.neural_network import NeuralNetwork
 
 input_layer_size = 3  # arbitrary
 hidden_layer_sizes = [4, 3]  # arbitrary
@@ -10,6 +8,7 @@ output_layer_size = 1  # arbitrary
 
 def main(processed_data: tuple[list[list[float]], dict[str, list[float]]]):
     x, y_targets = processed_data
+    print(y_targets)
 
     neural_network = NeuralNetwork(
         input_layer_size=len(x[0]),
@@ -18,18 +17,16 @@ def main(processed_data: tuple[list[list[float]], dict[str, list[float]]]):
         problem_type='binary_class',
         activation='sigmoid',
         loss='binary_cross_entropy',
-        learning_rate=0.5,
+        learning_rate=1.0,
     )
 
-    for n, y_target in enumerate(y_targets['poisonous']):
-        neural_network.train_on_iteration(
-            x=x[n],
-            y_target=y_target,
-        )
+    neural_network.train(
+        x=x,
+        y_target=y_targets,
+    )
 
 
 if __name__ == '__main__':
-
     # BINARY_CLASS
     data_handler = DataHandler(
         problem_type='binary_class',
