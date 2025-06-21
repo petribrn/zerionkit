@@ -10,6 +10,6 @@ df.rename(columns=columns_to_rename, inplace=True)
 
 df = pd.get_dummies(df, columns=['marital status', 'application mode', 'application order','course', 'daytime/evening attendance',
                                  'daytime/evening attendance', 'previous qualification', "mother's qualification", "father's qualification",
-                                 "mother's occupation", "father's occupation", "nacionality", "target"]).astype(int)
+                                 "mother's occupation", "father's occupation", "nacionality", "target"],dtype=int)
 
 df.to_csv('students_converted.csv', index=False)
