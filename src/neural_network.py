@@ -26,6 +26,9 @@ class NeuralNetwork:
             raise Exception()
         self.learning_rate = learning_rate
 
+        self.x: list[list[float]] = []
+        self.weights: list[list[list[float]]] = []
+
     def train(
             self,
             x: list[list[float]],
@@ -41,29 +44,24 @@ class NeuralNetwork:
             y_target_for_i = [dict(zip(y_target.keys(), values)) for values in zip(*y_target.values())][i]
 
             # output layer error gradients
-            y_error_gradients: list[float] = self.__apply_loss(
+            d_y: list[float] = self.__apply_loss(
                 y_predict=y_predict,
                 y_target=[y_target_for_i[sorted(y_target_for_i.keys())[0]]],
             )
 
-            self.__back_propagation(y_error_gradients=y_error_gradients)
+            self.__back_propagation(d_y=d_y)
 
     # - Apply a dot product between layers arrays and their respective weight matrix (wT).
     # - Apply activation function to each of the dot product results, to make it non-linear (if activation != Linear);
     # - Repeat this process until it gets the output layer outputs;
     def __forward_pass(self, x: list[float]) -> list[float]:
-        print("Input layer neurons")
-        for c, input in enumerate(x):
-            print(f"x{c}: {input}")
-
-        print('-----')
-
         y_predict: list[float] = x
         all_layers_sizes = [self.input_layer_size] + self.hidden_layers_sizes + [self.output_layer_size]
 
         i = 0
         while i < len(all_layers_sizes) - 1:
             y_predict = [1] + y_predict
+            self.x.append(y_predict)
 
             # Adds 1 for the bias
             current_layer_size = all_layers_sizes[i] + 1
@@ -74,17 +72,13 @@ class NeuralNetwork:
                 next_layer_size=next_layer_size,
             )
 
+            self.weights.append(next_layer_weights)
+
             v: list[float] = np.dot(next_layer_weights, y_predict)
             normalized_v: list[float] = [vi / 1000 for vi in v]
-
-            # for j, v_number in enumerate(normalized_v):
-            #     print(f"v{j}: {v_number}")
-            #
-            # print("-----")
+            self.x.append(normalized_v)
 
             y_predict = self.activation_function(normalized_v)
-            print(f'ŷ: {y_predict}')
-            print("-----")
 
             i += 1
 
@@ -95,7 +89,6 @@ class NeuralNetwork:
             current_layer_size: int,
             next_layer_size: int,
     ) -> list[list[float]]:
-        print("Generating layer weights")
 
         # size = matrix (rows, columns)
         next_layer_weights: list[list[float]] = (
@@ -105,15 +98,6 @@ class NeuralNetwork:
                 size=(next_layer_size, current_layer_size)
             ).tolist()
         )
-
-        # for i, hidden in enumerate(next_layer_weights):
-        #     for j, input_weight in enumerate(hidden):
-        #         if j == 0:
-        #             print(f"b{i}: {input_weight}")
-        #         else:
-        #             print(f"w{i}{j}: {input_weight}")
-        #
-        #     print("-----")
 
         return next_layer_weights
 
@@ -147,8 +131,13 @@ class NeuralNetwork:
 
     # - Backpropagate the y error gradients to previous layers
     # - Calculate the new bias and weights for next iteration
-    def __back_propagation(self, y_error_gradients: list[float]) -> list[float]:
-        ...
+    def __back_propagation(self, d_y: list[float]) -> list[float]:
+        last_x = self.x[-1]
+        last_x_derivatives = self.Activation.sigmoid_derivative(last_x)
+
+        d_x = [d_y_i * last_x_d for d_y_i, last_x_d in zip(d_y, last_x_derivatives)]
+
+        return d_x
 
     class Activation:
         """
@@ -157,18 +146,44 @@ class NeuralNetwork:
             Implements activation functions methods of the neural network core.
         """
 
-        @staticmethod
-        def linear(x: list[float]) -> list[float]:
+        @classmethod
+        def linear(cls, x: list[float]) -> list[float]:
             return x
 
-        @staticmethod
-        def sigmoid(x: list[float]) -> list[float]:
+        @classmethod
+        def sigmoid(cls, x: list[float]) -> list[float]:
             return [1 / (1 + math.exp(-xi)) for xi in x]
 
-        @staticmethod
-        def softmax(x: list[float]) -> list[float]:
+        @classmethod
+        def sigmoid_derivative(cls, x: list[float]) -> list[float]:
+            sigmoids = cls.sigmoid(x)
+            return [sigmoid * (1 - sigmoid) for sigmoid in sigmoids]
+
+        @classmethod
+        def softmax(cls, x: list[float]) -> list[float]:
             exp_x = [math.exp(xi - max(x)) for xi in x]
-            return [xi / sum(exp_x) for xi in exp_x]
+            sum_exp = sum(exp_x)
+
+            return [xi / sum_exp for xi in exp_x]
+
+        @classmethod
+        def softmax_derivative(cls, x: list[float]) -> list[list[float]]:
+            softmax = cls.softmax(x)
+            n = len(softmax)
+
+            jacobian_matrix = []
+
+            for i in range(n):
+                row = []
+
+                for j in range(n):
+                    if i == j:
+                        row.append(softmax[i] * (1 - softmax[i]))
+                    else:
+                        row.append(-softmax[i] * softmax[j])
+                jacobian_matrix.append(row)
+
+            return jacobian_matrix
 
         @classmethod
         def get_activation_func(cls, selected_activation_func: Literal['linear', 'sigmoid', 'softmax']):
