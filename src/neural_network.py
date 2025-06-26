@@ -3,6 +3,9 @@ from typing import Literal, Callable
 
 import numpy as np
 
+# Get transpose
+get_T = lambda m: [list(el) for el in zip(*m)]
+
 
 class NeuralNetwork:
     def __init__(
@@ -142,17 +145,14 @@ class NeuralNetwork:
         last_x: list[float] = self.x[-1]
         last_x_derivatives: list[float] = self.derivative_activation_function(last_x)
 
-        # Get transpose
-        get_T = lambda m: [list(el) for el in zip(*m)]
-
         # Activation layer
         d_y_activ: list[float] = [d_y_i * last_x_d for d_y_i, last_x_d in zip(d_y, last_x_derivatives)]
 
         # Linear combination layer
-        if len(self.weights[-1]) < 2:
-            w_t: list[list[float]] = self.weights[-1] # If don't have at least 2 dimensions, the wT is the vector itself
-        else:
+        if len(self.weights[-1]) == 1:
             w_t: list[list[float]] = get_T(self.weights[-1])
+        else:
+            w_t: list[list[float]] = self.weights[-1] # If we have at least 2 dimensions, the wT is the vector itself
 
         d_y_linear: list[float] = np.dot(w_t, d_y_activ)
         d_w: list[list[float]] = np.outer(self.x[-2], get_T(d_y_activ)) # TODO: Corrections of outer product (errors)
@@ -213,7 +213,8 @@ class NeuralNetwork:
             return jacobian_matrix
 
         @classmethod
-        def get_activation_func(cls, selected_activation_func: Literal['linear', 'sigmoid', 'softmax']) -> Callable[[list[float]], list[float]]:
+        def get_activation_func(cls, selected_activation_func: Literal['linear', 'sigmoid', 'softmax']) -> Callable[
+            [list[float]], list[float]]:
             match selected_activation_func:
                 case 'linear':
                     return cls.linear
@@ -225,7 +226,8 @@ class NeuralNetwork:
                     return None
 
         @classmethod
-        def get_derivative_activation_func(cls, selected_activation_func: Literal['linear', 'sigmoid', 'softmax']) -> Callable[[list[float]], list[float]]:
+        def get_derivative_activation_func(cls, selected_activation_func: Literal['linear', 'sigmoid', 'softmax']) -> \
+        Callable[[list[float]], list[float]]:
             match selected_activation_func:
                 case 'linear':
                     return cls.linear_derivative
