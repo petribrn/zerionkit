@@ -1,16 +1,14 @@
 from src.data_handler import DataHandler
 from src.neural_network import NeuralNetwork
 
-# input_layer_size = 3 # arbitrary
+input_layer_size = 3  # arbitrary
 hidden_layer_sizes = [4, 3]  # arbitrary
 output_layer_size = 1  # arbitrary
 
-binary_class_threshold = 0.5  # arbitrary
 
-
-def main():
-    x: list[list[float]] = [[]]
-    y_targets: list[float] = []
+def main(processed_data: tuple[list[list[float]], dict[str, list[float]]]):
+    x, y_targets = processed_data
+    print(y_targets)
 
     neural_network = NeuralNetwork(
         input_layer_size=len(x[0]),
@@ -18,25 +16,36 @@ def main():
         output_layer_size=output_layer_size,
         problem_type='binary_class',
         activation='sigmoid',
-        loss='cross_entropy',
+        loss='binary_cross_entropy',
+        learning_rate=1.0,
     )
 
-    acc_error = 0
-    for i, y_target in enumerate(y_targets):
-        y_predict_probability = neural_network.forward_pass(x=x[i])[0]
-        y_predict = 0 if y_predict_probability < binary_class_threshold else 1
-
-        # TODO: Calculate error (y - ŷ)
-        obs_error = y_target - y_predict
-        acc_error += obs_error
+    neural_network.train(
+        x=x,
+        y_target=y_targets,
+    )
 
 
 if __name__ == '__main__':
+    # BINARY_CLASS
     data_handler = DataHandler(
-        problem_type='multi_class',
-        data_source_filename='students.csv',
-        y_target_column_name='Target',
+        problem_type='binary_class',
+        data_source_filename='mushroom_converted.csv',
+        y_target_columns='poisonous',
     )
-    print(data_handler.processed_data[0]) # inputs: x
-    print(data_handler.processed_data[1]) # targets: y
-    # main()
+
+    # REGRESSION
+    # data_handler = DataHandler(
+    #     problem_type='regression',
+    #     data_source_filename='bike_converted.csv',
+    #     y_target_columns='cnt',
+    # )
+
+    # MULTI_CLASS
+    # data_handler = DataHandler(
+    #     problem_type='multi_class',
+    #     data_source_filename='students_converted.csv',
+    #     y_target_columns=['target_Dropout', 'target_Enrolled', 'target_Graduate'],
+    # )
+
+    main(processed_data=data_handler.processed_data)
