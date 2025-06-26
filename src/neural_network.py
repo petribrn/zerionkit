@@ -1,5 +1,5 @@
 import math
-from typing import Literal
+from typing import Literal, Callable
 
 import numpy as np
 
@@ -20,6 +20,7 @@ class NeuralNetwork:
         self.output_layer_size = output_layer_size
         self.problem_type = problem_type
         self.activation_function = self.Activation.get_activation_func(activation)
+        self.derivative_activation_function = self.Activation.get_derivative_activation_func(activation)
         self.loss = loss
 
         if learning_rate < 0.0 or learning_rate < 1.0:
@@ -131,13 +132,35 @@ class NeuralNetwork:
 
     # - Backpropagate the y error gradients to previous layers
     # - Calculate the new bias and weights for next iteration
+
+    # self.weights[-1].append([x * 2 for x in self.weights[-1][0]])
+    # print(self.weights[-1])
+    #
+    # for i in self.weights[-1]:
+    #     print(i)
     def __back_propagation(self, d_y: list[float]) -> list[float]:
-        last_x = self.x[-1]
-        last_x_derivatives = self.Activation.sigmoid_derivative(last_x)
+        last_x: list[float] = self.x[-1]
+        last_x_derivatives: list[float] = self.derivative_activation_function(last_x)
 
-        d_x = [d_y_i * last_x_d for d_y_i, last_x_d in zip(d_y, last_x_derivatives)]
+        # Get transpose
+        get_T = lambda m: [list(el) for el in zip(*m)]
 
-        return d_x
+        # Activation layer
+        d_y_activ: list[float] = [d_y_i * last_x_d for d_y_i, last_x_d in zip(d_y, last_x_derivatives)]
+
+        # Linear combination layer
+        if len(self.weights[-1]) < 2:
+            w_t: list[list[float]] = self.weights[-1] # If don't have at least 2 dimensions, the wT is the vector itself
+        else:
+            w_t: list[list[float]] = get_T(self.weights[-1])
+
+        d_y_linear: list[float] = np.dot(w_t, d_y_activ)
+        d_w: list[list[float]] = np.outer(self.x[-2], get_T(d_y_activ)) # TODO: Corrections of outer product (errors)
+
+        # TODO: Separate gradient calculations for W and B
+        # TODO: Store in class attributes
+
+        return d_y_linear
 
     class Activation:
         """
@@ -149,6 +172,10 @@ class NeuralNetwork:
         @classmethod
         def linear(cls, x: list[float]) -> list[float]:
             return x
+
+        @classmethod
+        def linear_derivative(cls, x: list[float]) -> list[float]:
+            return 1
 
         @classmethod
         def sigmoid(cls, x: list[float]) -> list[float]:
@@ -186,7 +213,7 @@ class NeuralNetwork:
             return jacobian_matrix
 
         @classmethod
-        def get_activation_func(cls, selected_activation_func: Literal['linear', 'sigmoid', 'softmax']):
+        def get_activation_func(cls, selected_activation_func: Literal['linear', 'sigmoid', 'softmax']) -> Callable[[list[float]], list[float]]:
             match selected_activation_func:
                 case 'linear':
                     return cls.linear
@@ -194,6 +221,18 @@ class NeuralNetwork:
                     return cls.sigmoid
                 case 'softmax':
                     return cls.softmax
+                case _:
+                    return None
+
+        @classmethod
+        def get_derivative_activation_func(cls, selected_activation_func: Literal['linear', 'sigmoid', 'softmax']) -> Callable[[list[float]], list[float]]:
+            match selected_activation_func:
+                case 'linear':
+                    return cls.linear_derivative
+                case 'sigmoid':
+                    return cls.sigmoid_derivative
+                case 'softmax':
+                    return cls.softmax_derivative
                 case _:
                     return None
 
