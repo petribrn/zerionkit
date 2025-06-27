@@ -3,9 +3,6 @@ from typing import Literal, Callable
 
 import numpy as np
 
-# Get transpose
-get_T = lambda m: [list(el) for el in zip(*m)]
-
 
 class NeuralNetwork:
     def __init__(
@@ -21,17 +18,20 @@ class NeuralNetwork:
         self.input_layer_size = input_layer_size
         self.hidden_layers_sizes = hidden_layers_sizes
         self.output_layer_size = output_layer_size
+        self.all_layers_sizes = [self.input_layer_size] + self.hidden_layers_sizes + [self.output_layer_size]
+
         self.problem_type = problem_type
         self.activation_function = self.Activation.get_activation_func(activation)
         self.derivative_activation_function = self.Activation.get_derivative_activation_func(activation)
         self.loss = loss
 
-        if learning_rate < 0.0 or learning_rate < 1.0:
+        if learning_rate <= 0.0 or learning_rate > 1.0:
             raise Exception()
         self.learning_rate = learning_rate
 
         self.x: list[list[float]] = []
         self.weights: list[list[list[float]]] = []
+        self.d_weights: list[list[list[float]]] = []
 
     def train(
             self,
@@ -54,22 +54,22 @@ class NeuralNetwork:
             )
 
             self.__back_propagation(d_y=d_y)
+            self.__update_weights()
 
     # - Apply a dot product between layers arrays and their respective weight matrix (wT).
     # - Apply activation function to each of the dot product results, to make it non-linear (if activation != Linear);
     # - Repeat this process until it gets the output layer outputs;
     def __forward_pass(self, x: list[float]) -> list[float]:
         y_predict: list[float] = x
-        all_layers_sizes = [self.input_layer_size] + self.hidden_layers_sizes + [self.output_layer_size]
 
         i = 0
-        while i < len(all_layers_sizes) - 1:
+        while i < len(self.all_layers_sizes) - 1:
             y_predict = [1] + y_predict
             self.x.append(y_predict)
 
             # Adds 1 for the bias
-            current_layer_size = all_layers_sizes[i] + 1
-            next_layer_size = all_layers_sizes[i + 1]
+            current_layer_size = self.all_layers_sizes[i] + 1
+            next_layer_size = self.all_layers_sizes[i + 1]
 
             next_layer_weights = self.__get_next_layer_weights(
                 current_layer_size=current_layer_size,
@@ -78,7 +78,7 @@ class NeuralNetwork:
 
             self.weights.append(next_layer_weights)
 
-            v: list[float] = np.dot(next_layer_weights, y_predict)
+            v: list[float] = np.dot(next_layer_weights, y_predict).tolist()
             normalized_v: list[float] = [vi / 1000 for vi in v]
             self.x.append(normalized_v)
 
@@ -141,26 +141,30 @@ class NeuralNetwork:
     #
     # for i in self.weights[-1]:
     #     print(i)
-    def __back_propagation(self, d_y: list[float]) -> list[float]:
-        last_x: list[float] = self.x[-1]
-        last_x_derivatives: list[float] = self.derivative_activation_function(last_x)
+    def __back_propagation(self, d_y: list[float]):
+        d_y_linear: list[float] = d_y
 
-        # Activation layer
-        d_y_activ: list[float] = [d_y_i * last_x_d for d_y_i, last_x_d in zip(d_y, last_x_derivatives)]
+        for i in reversed(range(0, len(self.all_layers_sizes))):
+            x_derivatives: list[float] = self.derivative_activation_function(self.x[i])
 
-        # Linear combination layer
-        if len(self.weights[-1]) == 1:
-            w_t: list[list[float]] = get_T(self.weights[-1])
-        else:
-            w_t: list[list[float]] = self.weights[-1] # If we have at least 2 dimensions, the wT is the vector itself
+            # Activation layer
+            d_y_activ: list[float] = [d_y_i * last_x_d for d_y_i, last_x_d in zip(d_y_linear, x_derivatives)]
 
-        d_y_linear: list[float] = np.dot(w_t, d_y_activ)
-        d_w: list[list[float]] = np.outer(self.x[-2], get_T(d_y_activ)) # TODO: Corrections of outer product (errors)
+            # Transpose weights for back-propagation
+            w_t: list[list[float]] = np.transpose(self.weights[i]).tolist()
 
-        # TODO: Separate gradient calculations for W and B
-        # TODO: Store in class attributes
+            # Save weight error gradients for later update
+            d_w: list[list[float]] = np.outer(self.x[i - 1], d_y_activ).tolist()
+            self.d_weights.append(d_w)
 
-        return d_y_linear
+            # Calculate the previous layer error gradient to pass to the previous layer
+            d_y_linear: list[float] = np.dot(w_t, d_y_activ).tolist()
+
+    def __update_weights(self):
+        for c1, k in enumerate(self.weights):
+            for c2, i in enumerate(k):
+                for c3, j in enumerate(i):
+                    self.weights[c1][c2][c3] -= self.learning_rate * self.d_weights[c1][c2][c3]
 
     class Activation:
         """
@@ -175,7 +179,7 @@ class NeuralNetwork:
 
         @classmethod
         def linear_derivative(cls, x: list[float]) -> list[float]:
-            return 1
+            return [1.0] * len(x)
 
         @classmethod
         def sigmoid(cls, x: list[float]) -> list[float]:
@@ -227,7 +231,7 @@ class NeuralNetwork:
 
         @classmethod
         def get_derivative_activation_func(cls, selected_activation_func: Literal['linear', 'sigmoid', 'softmax']) -> \
-        Callable[[list[float]], list[float]]:
+                Callable[[list[float]], list[float]]:
             match selected_activation_func:
                 case 'linear':
                     return cls.linear_derivative
@@ -280,9 +284,7 @@ class NeuralNetwork:
             def derivative(y_predict: list[float], y_target: list[float]) -> list[float]:
                 y_predict_norm = [normalize_y_for_classification(y_p_r) for y_p_r in y_predict]
 
-                return [
-                    - (y_t / y_p) for y_t, y_p in zip(y_target, y_predict_norm)
-                ]
+                return [y_p - y_t for y_p, y_t in zip(y_predict_norm, y_target)]
 
 
 def normalize_y_for_classification(y_predict: float) -> float:
