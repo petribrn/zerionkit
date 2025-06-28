@@ -1,27 +1,27 @@
 from src.data_handler import DataHandler
 from src.neural_network import NeuralNetwork
 
-input_layer_size = 3  # arbitrary
 hidden_layer_sizes = [4, 3]  # arbitrary
 output_layer_size = 1  # arbitrary
 
 
 def main(processed_data: tuple[list[list[float]], dict[str, list[float]]]):
-    x, y_targets = processed_data
+    inputs, y_targets = processed_data
     print(y_targets)
 
     neural_network = NeuralNetwork(
-        input_layer_size=len(x[0]),
+        input_layer_size=len(inputs[0]),
         hidden_layers_sizes=hidden_layer_sizes,
         output_layer_size=output_layer_size,
         problem_type='binary_class',
         activation='sigmoid',
         loss='binary_cross_entropy',
         learning_rate=1.0,
+        epochs=1,
     )
 
     neural_network.train(
-        x=x,
+        inputs=inputs,
         y_target=y_targets,
     )
 
