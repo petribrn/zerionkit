@@ -8,15 +8,15 @@ from typing import Literal
 class DataHandler:
     def __init__(
             self,
+            dataset_type: Literal['complete', 'training', 'validation', 'test'],
             problem_type: Literal['regression', 'binary_class', 'multi_class'],
             dataset_name: Literal['mushroom', 'students', 'bike'],
             y_target_columns: str | list[str],
-            dataset_type: Literal['complete', 'training', 'validation', 'test'],
     ):
-        self.problem_type = problem_type
-
-        self.dataset_name = dataset_name
         self.dataset_type = dataset_type
+        self.problem_type = problem_type
+        self.dataset_name = dataset_name
+
         self.dataset_filename = self.__get_filename_by_dataset_type()
         self.dataframe = self.__create_dataframe(self.dataset_filename)
 

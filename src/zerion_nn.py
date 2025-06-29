@@ -55,11 +55,11 @@ class ZerionNN:
     def train(
             self,
             inputs: list[list[float]],
-            y_target: dict[str, list[float]],
+            y_targets: dict[str, list[float]],
     ):
         n = len(inputs)
 
-        if n == 0 or len(y_target.values()) == 0:
+        if n == 0 or len(y_targets.values()) == 0:
             raise Exception()
 
         epochs_errors: list[float] = []
@@ -72,7 +72,7 @@ class ZerionNN:
                 self.d_weights = []
 
                 y_predict: list[float] = self.__forward_pass(inputs=inputs[i])
-                y_target_for_i = [dict(zip(y_target.keys(), values)) for values in zip(*y_target.values())][i]
+                y_target_for_i = [dict(zip(y_targets.keys(), values)) for values in zip(*y_targets.values())][i]
 
                 error: list[float] = self.__calculate_error(
                     y_predict=y_predict,
@@ -94,9 +94,82 @@ class ZerionNN:
             print(f'[Epoch {e}] Mean Calculated error: {mean_error}')
 
             epochs_errors.append(mean_error)
+        return epochs_errors
 
-    def test(self, x_input: list[float]) -> list[float]:
-        return self.__forward_pass(x_input)
+    def predict(self, inputs: list[float]) -> list[float]:
+        return self.__forward_pass(inputs)
+
+    def evaluate(
+            self,
+            inputs: list[list[float]],
+            y_targets: dict[str, list[float]],
+    ) -> dict[str, float | int]:
+        n = len(inputs)
+        all_y_predict = []
+        all_y_target = []
+
+        # Get the name of the target variable from the dictionary
+        y_target_keys = sorted(y_targets.keys())
+
+        for i in range(n):
+            # Predict values using current network weights
+            prediction = self.predict(inputs=inputs[i])
+            y_target_i = [y_targets[key][i] for key in y_target_keys]
+
+            all_y_predict.append(prediction)
+            all_y_target.append(y_target_i)
+
+        metrics = {}
+        print(f"\n--- Evaluation Results ---")
+
+        if self.problem_type == 'regression':
+            # Flatten the lists for calculation
+            y_predict = np.array(all_y_predict).flatten().tolist()
+            y = np.array(all_y_target).flatten().tolist()
+
+            # Mean Squared Error (MSE)
+            mse = np.mean(Loss.SquareError.main(y, y_predict))
+
+            metrics = {'mse': mse}
+
+            print(f"Mean Squared Error (MSE): {mse:.4f}")
+
+        elif self.problem_type in ['binary_class', 'multi_class']:
+            correct_predictions = 0
+            predicted_classes = []
+            true_classes = []
+
+            for pred, true in zip(all_y_predict, all_y_target):
+                y_predict = None
+                y_target = None
+
+                if self.problem_type == 'binary_class':
+                    # Apply threshold
+                    y_predict = 1 if pred[0] > 0.5 else 0
+                    y_target = true[0]
+                else:
+                    # Predicted class == highest probability
+                    y_predict = np.argmax(pred)
+                    y_target = np.argmax(true)
+
+                if y_predict == y_target:
+                    correct_predictions += 1
+
+                predicted_classes.append(y_predict)
+                true_classes.append(y_target)
+
+            accuracy = (correct_predictions / n) * 100 if n > 0 else 0
+
+            metrics = {
+                'accuracy': accuracy,
+                'total_samples': n,
+                'correct_predictions': correct_predictions
+            }
+
+            print(f"Accuracy: {accuracy:.2f}%")
+            print(f"Correct Predictions: {correct_predictions}/{n}")
+
+        return metrics
 
     # - Apply a dot product between layers arrays and their respective weight matrix (wT).
     # - Apply activation function to each of the dot product results, to make it non-linear (if activation != Linear);
