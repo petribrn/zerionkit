@@ -7,15 +7,15 @@ def main(processed_data: tuple[list[list[float]], dict[str, list[float]]]):
     inputs, y_targets = processed_data
 
     neural_network = ZerionNN(
-        problem_type='binary_class',
+        problem_type='regression',
         layers=[
-            Layer(size=len(inputs[0]), activation='sigmoid'),
+            Layer(size=len(inputs[0]), activation='linear'),
             Layer(size=2, activation='relu'),
-            Layer(size=1, activation='sigmoid'),
+            Layer(size=1, activation='linear'),
         ],
-        loss='binary_cross_entropy',
-        learning_rate=0.5,
-        epochs=400,
+        loss='square_error',
+        learning_rate=0.35,
+        epochs=4,
     )
 
     neural_network.train(
@@ -31,27 +31,27 @@ def main(processed_data: tuple[list[list[float]], dict[str, list[float]]]):
 
 if __name__ == '__main__':
     # BINARY_CLASS
-    data_handler = DataHandler(
-        problem_type='binary_class',
-        data_source_filename='mushroom_converted.csv',
-        y_target_columns='poisonous',
-        auto_process=True,
-    )
+    # data_handler = DataHandler(
+    #     problem_type='binary_class',
+    #     dataset_name = 'mushroom',
+    #     dataset_type = 'training',
+    #     y_target_columns='poisonous',
+    # )
 
     # REGRESSION
-    # data_handler = DataHandler(
-    #     problem_type='regression',
-    #     data_source_filename='bike_converted.csv',
-    #     y_target_columns='cnt',
-    #     auto_process=True,
-    # )
+    data_handler = DataHandler(
+        problem_type='regression',
+        dataset_name='bike',
+        dataset_type='training',
+        y_target_columns='cnt',
+    )
 
     # MULTI_CLASS
     # data_handler = DataHandler(
     #     problem_type='multi_class',
-    #     data_source_filename='students_converted.csv',
+    #     dataset_name = 'students',
+    #     dataset_type = 'training',
     #     y_target_columns=['target_Dropout', 'target_Enrolled', 'target_Graduate'],
-    #     auto_process=True,
     # )
 
-    main(processed_data=data_handler.validation_data)
+    # main(processed_data=data_handler.processed_data)
