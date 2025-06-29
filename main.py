@@ -35,6 +35,7 @@ if __name__ == '__main__':
         problem_type='binary_class',
         data_source_filename='mushroom_converted.csv',
         y_target_columns='poisonous',
+        auto_process=True,
     )
 
     # REGRESSION
@@ -42,6 +43,7 @@ if __name__ == '__main__':
     #     problem_type='regression',
     #     data_source_filename='bike_converted.csv',
     #     y_target_columns='cnt',
+    #     auto_process=True,
     # )
 
     # MULTI_CLASS
@@ -49,6 +51,7 @@ if __name__ == '__main__':
     #     problem_type='multi_class',
     #     data_source_filename='students_converted.csv',
     #     y_target_columns=['target_Dropout', 'target_Enrolled', 'target_Graduate'],
+    #     auto_process=True,
     # )
 
-    main(processed_data=data_handler.processed_data)
+    main(processed_data=data_handler.validation_data)
