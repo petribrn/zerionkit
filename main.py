@@ -1,13 +1,12 @@
 from src.data_handler import DataHandler
 from src.neural_network import NeuralNetwork
 
-hidden_layer_sizes = [4, 3]  # arbitrary
+hidden_layer_sizes = [4]  # arbitrary
 output_layer_size = 1  # arbitrary
 
 
 def main(processed_data: tuple[list[list[float]], dict[str, list[float]]]):
     inputs, y_targets = processed_data
-    print(y_targets)
 
     neural_network = NeuralNetwork(
         input_layer_size=len(inputs[0]),
@@ -16,8 +15,8 @@ def main(processed_data: tuple[list[list[float]], dict[str, list[float]]]):
         problem_type='binary_class',
         activation='sigmoid',
         loss='binary_cross_entropy',
-        learning_rate=1.0,
-        epochs=1,
+        learning_rate=0.5,
+        epochs=400,
     )
 
     neural_network.train(
@@ -25,6 +24,10 @@ def main(processed_data: tuple[list[list[float]], dict[str, list[float]]]):
         y_target=y_targets,
     )
 
+    # Testing XOR
+    # output = neural_network.test([1,1])
+    # output = 1 if output[0] > 0.5 else 0
+    # print(f'Output: {output}')
 
 if __name__ == '__main__':
     # BINARY_CLASS

@@ -1,8 +1,11 @@
 import math
 from typing import Literal, Callable
 
-
 import numpy as np
+
+# TODO: DIFFERENT ACTIVATION PER LAYER
+# hidden_layers = [{'size': 4, 'activation': 'sigmoid'}, {'size': 3, 'activation': 'reLU'},
+#                  {'size': 1, 'activation': 'sigmoid'}]
 
 
 class NeuralNetwork:
@@ -32,11 +35,11 @@ class NeuralNetwork:
         self.learning_rate = learning_rate
         self.epochs = epochs
 
-        self.x: list[list[float]] = [] # before applying activation function
-        self.z: list[list[float]] = [] # after applying activation function
+        self.x: list[list[float]] = []  # before applying activation function
+        self.z: list[list[float]] = []  # after applying activation function
 
         self.weights: list[list[list[float]]] = self.__generate_weights()
-        self.d_weights: list[list[list[float]]] = [[[0.0 for _ in col] for col in row] for row in self.weights]
+        self.d_weights: list[list[list[float]]] = []
 
     def __generate_weights(self) -> list[list[list[float]]]:
         weights: list[list[list[float]]] = []
@@ -47,9 +50,9 @@ class NeuralNetwork:
             # size = matrix (rows, columns)
             next_layer_weights: list[list[float]] = (
                 np.random.uniform(
-                    low=0.1,
-                    high=1,
-                    size=(next_size, current_size + 1) # Adds 1 for the bias
+                    low=-1.0,
+                    high=1.0,
+                    size=(next_size, current_size + 1)  # Adds 1 for the bias
                 ).tolist()
             )
 
@@ -66,8 +69,11 @@ class NeuralNetwork:
             raise Exception()
 
         n = len(inputs)
+        epochs_errors: list[float] = []
 
         for e in range(self.epochs):
+            iterations_errors: list[list[float]] = []
+
             for i in range(n):
                 self.x = []
                 self.d_weights = []
@@ -75,14 +81,29 @@ class NeuralNetwork:
                 y_predict: list[float] = self.__forward_pass(inputs=inputs[i])
                 y_target_for_i = [dict(zip(y_target.keys(), values)) for values in zip(*y_target.values())][i]
 
+                error: list[float] = self.__calculate_error(
+                    y_predict=y_predict,
+                    y_target=[y_target_for_i[sorted(y_target_for_i.keys())[0]]],
+                )
+                iterations_errors.append(error)
+
                 # output layer error gradients
-                d_y: list[float] = self.__apply_loss(
+                d_y: list[float] = self.__calculate_error_gradient(
                     y_predict=y_predict,
                     y_target=[y_target_for_i[sorted(y_target_for_i.keys())[0]]],
                 )
 
                 self.__back_propagation(d_y=d_y)
                 self.__update_weights()
+
+            error_arr = np.array(iterations_errors)
+            mean_error = np.mean(error_arr, axis=0).tolist()
+            print(f'[Epoch {e}] Mean Calculated error: {mean_error}')
+
+            epochs_errors.append(mean_error)
+
+    def test(self, x_input: list[float]) -> list[float]:
+        return self.__forward_pass(x_input)
 
     # - Apply a dot product between layers arrays and their respective weight matrix (wT).
     # - Apply activation function to each of the dot product results, to make it non-linear (if activation != Linear);
@@ -95,7 +116,7 @@ class NeuralNetwork:
         y_predict: list[float] = inputs
 
         for next_layer_weights in self.weights:
-            y_predict = [1.0] + y_predict # Add 1 for the bias
+            y_predict = [1.0] + y_predict  # Add 1 for the bias
             self.x.append(y_predict)
 
             v: list[float] = np.dot(next_layer_weights, y_predict).tolist()
@@ -107,12 +128,40 @@ class NeuralNetwork:
 
     # - Calculate the output layer error gradient given y predict and y target, to get the y value
     # in which the error most increases.
-    def __apply_loss(
+    def __calculate_error(
             self,
             y_predict: list[float],
             y_target: list[float],
     ) -> list[float]:
-        d_error = []
+        error: list[float] = []
+
+        match self.problem_type:
+            case 'regression':
+                error = self.Loss.Mse.main(
+                    y_predict=y_predict[0],
+                    y_target=y_target[0],
+                )
+            case 'binary_class':
+                error = self.Loss.BinaryCrossEntropy.main(
+                    y_predict=y_predict[0],
+                    y_target=y_target[0],
+                )
+            case 'multi_class':
+                error = self.Loss.MultiClassCrossEntropy.main(
+                    y_predict=y_predict,
+                    y_target=y_target,
+                )
+
+        return error
+
+    # - Calculate the output layer error gradient given y predict and y target, to get the y value
+    # in which the error most increases.
+    def __calculate_error_gradient(
+            self,
+            y_predict: list[float],
+            y_target: list[float],
+    ) -> list[float]:
+        d_error: list[float] = []
 
         match self.problem_type:
             case 'regression':
@@ -134,22 +183,28 @@ class NeuralNetwork:
         return d_error
 
     # - Backpropagate the y error gradients to previous layers
-    # - Calculate the new bias and weights for next iteration
+    # - Calculate gradients for the bias and weights
     def __back_propagation(self, d_y: list[float]):
         d_y_linear: list[float] = d_y
 
         for i in reversed(range(len(self.weights))):
-            x_derivatives: list[float] = self.derivative_activation_function(self.x[i])
+            # # Activation layer
+            # x_derivatives: list[float] = self.derivative_activation_function(self.z[i])
+            # d_y_activ: list[float] = [d_y_i * last_x_d for d_y_i, last_x_d in zip(d_y_linear, x_derivatives)]
 
-            # Activation layer
-            d_y_activ: list[float] = [d_y_i * last_x_d for d_y_i, last_x_d in zip(d_y_linear, x_derivatives)]
-
-            # Transpose weights for back-propagation
-            w_t: list[list[float]] = np.transpose(self.weights[i]).tolist()
+            if i == len(self.weights) - 1:
+                d_y_activ = d_y_linear
+            else:
+                x_derivatives: list[float] = self.derivative_activation_function(self.z[i])
+                d_y_activ: list[float] = [d_y_i * last_x_d for d_y_i, last_x_d in zip(d_y_linear, x_derivatives)]
 
             # Save weight error gradients for later update
-            d_w: list[list[float]] = np.outer(self.x[i], d_y_activ).tolist()
-            self.d_weights.append(d_w)
+            d_w: list[list[float]] = np.transpose(np.outer(self.x[i], d_y_activ)).tolist()
+            self.d_weights.insert(0, d_w)
+
+            # Transpose weights (without bias) for back-propagation
+            layer_weights_without_bias: list[list[float]] = [w[1:] for w in self.weights[i]]
+            w_t: list[list[float]] = np.transpose(layer_weights_without_bias).tolist()
 
             # Calculate the previous layer error gradient to pass to the previous layer
             d_y_linear: list[float] = np.dot(w_t, d_y_activ).tolist()
@@ -178,12 +233,12 @@ class NeuralNetwork:
 
         @classmethod
         def sigmoid(cls, x: list[float]) -> list[float]:
-            return [1 / (1 + math.exp(-xi)) for xi in x]
+            return [float(1.0 / (1.0 + np.exp(-xi))) for xi in x]
 
         @classmethod
         def sigmoid_derivative(cls, x: list[float]) -> list[float]:
             sigmoids = cls.sigmoid(x)
-            return [sigmoid * (1 - sigmoid) for sigmoid in sigmoids]
+            return [sigmoid * (1.0 - sigmoid) for sigmoid in sigmoids]
 
         @classmethod
         def softmax(cls, x: list[float]) -> list[float]:
@@ -256,13 +311,17 @@ class NeuralNetwork:
                     - (y_target * math.log(y_predict_norm) + (1 - y_target) * math.log(1 - y_predict_norm))
                 ]
 
+            # @staticmethod
+            # def derivative(y_predict: float, y_target: float) -> list[float]:
+            #     y_predict_norm = normalize_y_for_classification(y_predict)
+            #
+            #     return [
+            #         - (y_target / y_predict_norm) + (1 - y_target) / (1 - y_predict_norm)
+            #     ]
+
             @staticmethod
             def derivative(y_predict: float, y_target: float) -> list[float]:
-                y_predict_norm = normalize_y_for_classification(y_predict)
-
-                return [
-                    - (y_target / y_predict_norm) + (1 - y_target) / (1 - y_predict_norm)
-                ]
+                return [y_predict - y_target]
 
         class MultiClassCrossEntropy:
             @staticmethod
