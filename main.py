@@ -3,55 +3,72 @@ from src.zerion_nn import ZerionNN
 from src.layer import Layer
 
 
-def main(processed_data: tuple[list[list[float]], dict[str, list[float]]]):
-    inputs, y_targets = processed_data
+def main():
+    training_data_handler = DataHandler(
+        dataset_type='training',
+        problem_type='binary_class',
+        dataset_name='mushroom',
+        y_target_columns='poisonous',
+    )
+
+    # training_data_handler = DataHandler(
+    #     dataset_type = 'training',
+    #     problem_type='regression',
+    #     dataset_name='bike',
+    #     y_target_columns='cnt',
+    # )
+
+    # training_data_handler = DataHandler(
+    #     dataset_type = 'training',
+    #     problem_type='multi_class',
+    #     dataset_name = 'students',
+    #     y_target_columns=['target_Dropout', 'target_Enrolled', 'target_Graduate'],
+    # )
+
+    validation_data_handler = DataHandler(
+        dataset_type='validation',
+        problem_type='binary_class',
+        dataset_name='mushroom',
+        y_target_columns='poisonous',
+    )
+
+    test_data_handler = DataHandler(
+        dataset_type='test',
+        problem_type='binary_class',
+        dataset_name='mushroom',
+        y_target_columns='poisonous',
+    )
+
+    training_inputs, training_y_targets = training_data_handler.processed_data
 
     neural_network = ZerionNN(
-        problem_type='regression',
+        problem_type='binary_class',
         layers=[
-            Layer(size=len(inputs[0]), activation='linear'),
-            Layer(size=2, activation='relu'),
-            Layer(size=1, activation='linear'),
+            Layer(size=len(training_inputs[0]), activation='sigmoid'),
+            Layer(size=4, activation='relu'),
+            Layer(size=8, activation='relu'),
+            Layer(size=1, activation='sigmoid'),
         ],
-        loss='square_error',
+        loss='binary_cross_entropy',
         learning_rate=0.35,
         epochs=4,
     )
 
-    neural_network.train(
-        inputs=inputs,
-        y_target=y_targets,
+    errors = neural_network.train(
+        inputs=training_inputs,
+        y_targets=training_y_targets,
+    )
+
+    neural_network.evaluate(
+        inputs=validation_data_handler.processed_data[0],
+        y_targets=validation_data_handler.processed_data[1],
     )
 
     # Testing XOR
-    # output = neural_network.test([1,1])
+    # output = neural_network.predict([1,1])
     # output = 1 if output[0] > 0.5 else 0
     # print(f'Output: {output}')
 
 
 if __name__ == '__main__':
-    # BINARY_CLASS
-    # data_handler = DataHandler(
-    #     problem_type='binary_class',
-    #     dataset_name = 'mushroom',
-    #     dataset_type = 'training',
-    #     y_target_columns='poisonous',
-    # )
-
-    # REGRESSION
-    data_handler = DataHandler(
-        problem_type='regression',
-        dataset_name='bike',
-        dataset_type='training',
-        y_target_columns='cnt',
-    )
-
-    # MULTI_CLASS
-    # data_handler = DataHandler(
-    #     problem_type='multi_class',
-    #     dataset_name = 'students',
-    #     dataset_type = 'training',
-    #     y_target_columns=['target_Dropout', 'target_Enrolled', 'target_Graduate'],
-    # )
-
-    # main(processed_data=data_handler.processed_data)
+    main()
