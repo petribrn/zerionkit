@@ -165,8 +165,8 @@ class ZerionNN:
 
             metrics = {'mse': mse, 'rmse': rmse}
 
-            print(f"Mean Squared Error (MSE): {mse:.4f}")
-            print(f"Root Mean Squared Error (MSE): {rmse:.4f}")
+            print(f"Mean Squared Error (MSE): {mse}")
+            print(f"Root Mean Squared Error (MSE): {rmse}")
 
         elif self.problem_type in ['binary_class', 'multi_class']:
             correct_predictions = 0
