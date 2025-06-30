@@ -111,7 +111,7 @@ class ZerionNN:
             mean_error = float(np.mean([err[0] for err in iterations_errors]))
             epoch_accuracy = (correct_predictions_in_epoch / n) * 100 if n > 0 else 0
 
-            print(f'[Epoch {e}] Error: {mean_error:.6f}{f'| Accuracy: {epoch_accuracy:.2f}%' if self.problem_type != 'regression' else ''}')
+            print(f'[Epoch {e}] Error: {mean_error}{f'| Accuracy: {epoch_accuracy}%' if self.problem_type != 'regression' else ''}')
 
             epochs_errors.append(mean_error)
             epochs_accuracies.append(epoch_accuracy)
@@ -200,7 +200,7 @@ class ZerionNN:
                 'correct_predictions': correct_predictions
             }
 
-            print(f"Accuracy: {accuracy:.2f}%")
+            print(f"Accuracy: {accuracy}%")
             print(f"Correct Predictions: {correct_predictions}/{n}")
 
         return metrics
