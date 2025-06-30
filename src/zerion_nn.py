@@ -89,7 +89,7 @@ class ZerionNN:
                 if self.problem_type == 'binary_class':
                     # For binary, apply a 0.5 threshold to the single output neuron
                     pred_class = 1 if y_predict[0] > 0.5 else 0
-                    true_class = int(y_target_for_i.values()[0])
+                    true_class = int(list(y_target_for_i.values())[0])
                     if pred_class == true_class:
                         correct_predictions_in_epoch += 1
                 elif self.problem_type == 'multi_class':
@@ -110,8 +110,8 @@ class ZerionNN:
 
             mean_error = float(np.mean([err[0] for err in iterations_errors]))
             epoch_accuracy = (correct_predictions_in_epoch / n) * 100 if n > 0 else 0
-
-            print(f'[Epoch {e}] Error: {mean_error}{f'| Accuracy: {epoch_accuracy}%' if self.problem_type != "regression" else ""}')
+            accuracy_to_print = f'| Accuracy: {epoch_accuracy}%' if self.problem_type != 'regression' else ''
+            print(f'[Epoch {e}] Error: {mean_error}{accuracy_to_print}')
 
             epochs_errors.append(mean_error)
             epochs_accuracies.append(epoch_accuracy)
