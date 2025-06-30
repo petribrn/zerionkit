@@ -1,4 +1,7 @@
 from typing import Literal
+
+from sklearn.preprocessing import StandardScaler
+
 from src.layer import Layer
 from src.loss import Loss
 
@@ -63,9 +66,11 @@ class ZerionNN:
             raise Exception()
 
         epochs_errors: list[float] = []
+        epochs_accuracies: list[float] = []
 
         for e in range(self.epochs):
             iterations_errors: list[list[float]] = []
+            correct_predictions_in_epoch = 0
 
             for i in range(n):
                 self.x = []
@@ -74,27 +79,47 @@ class ZerionNN:
                 y_predict: list[float] = self.__forward_pass(inputs=inputs[i])
                 y_target_for_i = [dict(zip(y_targets.keys(), values)) for values in zip(*y_targets.values())][i]
 
+                # Only for metrics, does not impact the training process
                 error: list[float] = self.__calculate_error(
                     y_predict=y_predict,
-                    y_target=[y_target_for_i[sorted(y_target_for_i.keys())[0]]],
+                    y_target=list(y_target_for_i.values()),
                 )
                 iterations_errors.append(error)
+
+                if self.problem_type == 'binary_class':
+                    # For binary, apply a 0.5 threshold to the single output neuron
+                    pred_class = 1 if y_predict[0] > 0.5 else 0
+                    true_class = int(y_target_for_i.values()[0])
+                    if pred_class == true_class:
+                        correct_predictions_in_epoch += 1
+                elif self.problem_type == 'multi_class':
+                    # For multi-class, find the index of the highest prob
+                    pred_class = np.argmax(y_predict)
+                    true_class = np.argmax(y_target_for_i.values())
+                    if pred_class == true_class:
+                        correct_predictions_in_epoch += 1
 
                 # output layer error gradients
                 d_y: list[float] = self.__calculate_error_gradient(
                     y_predict=y_predict,
-                    y_target=[y_target_for_i[sorted(y_target_for_i.keys())[0]]],
+                    y_target=list(y_target_for_i.values()),
                 )
 
                 self.__back_propagation(d_y=d_y)
                 self.__update_weights()
 
-            error_arr = np.array(iterations_errors)
-            mean_error = np.mean(error_arr, axis=0).tolist()
-            print(f'[Epoch {e}] Mean Calculated error: {mean_error}')
+            mean_error = float(np.mean([err[0] for err in iterations_errors]))
+            epoch_accuracy = (correct_predictions_in_epoch / n) * 100 if n > 0 else 0
+
+            print(f'[Epoch {e}] Error: {mean_error:.6f}{f'| Accuracy: {epoch_accuracy:.2f}%' if self.problem_type != 'regression' else ''}')
 
             epochs_errors.append(mean_error)
-        return epochs_errors
+            epochs_accuracies.append(epoch_accuracy)
+
+        return {
+            'errors': epochs_errors,
+            'accuracies': epochs_accuracies
+        }
 
     def predict(self, inputs: list[float]) -> list[float]:
         return self.__forward_pass(inputs)
@@ -103,6 +128,7 @@ class ZerionNN:
             self,
             inputs: list[list[float]],
             y_targets: dict[str, list[float]],
+            y_scaler: StandardScaler = None,
     ) -> dict[str, float | int]:
         n = len(inputs)
         all_y_predict = []
@@ -124,15 +150,23 @@ class ZerionNN:
 
         if self.problem_type == 'regression':
             # Flatten the lists for calculation
-            y_predict = np.array(all_y_predict).flatten().tolist()
-            y = np.array(all_y_target).flatten().tolist()
+            y_predict_scaled = np.array(all_y_predict).flatten().reshape(-1,1).tolist()
+            y_target_scaled = np.array(all_y_target).flatten().reshape(-1,1).tolist()
+
+            if y_scaler is None:
+                raise ValueError("y_scaler must be provided for regression evaluation.")
+
+            y_predict_unscaled = y_scaler.inverse_transform(y_predict_scaled)
+            y_target_unscaled = y_scaler.inverse_transform(y_target_scaled)
 
             # Mean Squared Error (MSE)
-            mse = np.mean(Loss.SquareError.main(y, y_predict))
+            mse = np.mean(Loss.SquareError.main(y_target_unscaled, y_predict_unscaled))
+            rmse = np.sqrt(mse)
 
-            metrics = {'mse': mse}
+            metrics = {'mse': mse, 'rmse': rmse}
 
             print(f"Mean Squared Error (MSE): {mse:.4f}")
+            print(f"Root Mean Squared Error (MSE): {rmse:.4f}")
 
         elif self.problem_type in ['binary_class', 'multi_class']:
             correct_predictions = 0
@@ -256,7 +290,7 @@ class ZerionNN:
 
         for i in reversed(range(len(self.weights))):
             # Activation layer
-            if i == len(self.weights) - 1:
+            if i == len(self.weights) - 1 and self.problem_type != 'regression':
                 d_y_activ = d_y_linear
             else:
                 derivative_activation_function = (
@@ -264,7 +298,13 @@ class ZerionNN:
                 )
 
                 x_derivatives: list[float] = derivative_activation_function(self.z[i])
-                d_y_activ: list[float] = [d_y_i * last_x_d for d_y_i, last_x_d in zip(d_y_linear, x_derivatives)]
+
+                if x_derivatives and isinstance(x_derivatives[0], list):
+                    # If it's a matrix (from softmax), need to use dot product
+                    d_y_activ = np.dot(d_y_linear, x_derivatives).tolist()
+                else:
+                    # If it's a vector, use element-wise multiplication
+                    d_y_activ: list[float] = [d_y_i * last_x_d for d_y_i, last_x_d in zip(d_y_linear, x_derivatives)]
 
             # Save weight error gradients for later update
             d_w: list[list[float]] = np.transpose(np.outer(self.x[i], d_y_activ)).tolist()

@@ -1,8 +1,8 @@
-import math
-
 import pandas as pd
 from src.configs.constants import Constants
 from typing import Literal
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 
 class DataHandler:
@@ -16,6 +16,8 @@ class DataHandler:
         self.dataset_type = dataset_type
         self.problem_type = problem_type
         self.dataset_name = dataset_name
+        self.x_scaler = StandardScaler()
+        self.y_scaler = StandardScaler()
 
         self.dataset_filename = self.__get_filename_by_dataset_type()
         self.dataframe = self.__create_dataframe(self.dataset_filename)
@@ -64,17 +66,8 @@ class DataHandler:
         if not all([self.dataset_type == 'complete', 'converted' in self.dataset_filename]):
             raise Exception('Dataset type and must be "complete" to create slices.')
 
-        shuffled_dataframe = self.dataframe.sample(frac=1, random_state=42).reset_index(drop=True)
-        test_data_rows = math.ceil(shuffled_dataframe.shape[0] * test_set_percentage)
-
-        test_dataframe = self.dataframe.iloc[:test_data_rows]
-        # Temporary Training data slice without extracting Validation
-        temp_training = self.dataframe.iloc[test_data_rows:]
-
-        # Get Validation and Training Dataframe slices
-        validation_rows = math.ceil(temp_training.shape[0] * validation_set_percentage)
-        training_dataframe = temp_training.iloc[validation_rows:]
-        validation_dataframe = temp_training.iloc[:validation_rows]
+        temp_df, test_dataframe = train_test_split(self.dataframe, test_size=test_set_percentage, random_state=42)
+        training_dataframe, validation_dataframe = train_test_split(temp_df, test_size=validation_set_percentage, random_state=42)
 
         # Persist csv:
         if persist_to_csv:
@@ -93,42 +86,17 @@ class DataHandler:
 
     def __get_processed_data(self, df: pd.DataFrame) -> tuple[list[list[float]], dict[str, list[float]]]:
         # Get normalized inputs and targets
-        x: list[list[float]] = self.__process_problem_type_data(df)
-        y_target: dict[str, list[float]] = self.__get_y_target_columns_values(df)
+        x: list[list[float]] = self.__get_x_processed_data(df)
+        y_target: dict[str, list[float]] = self.__get_y_targets_processed_data(df)
 
         return x, y_target
 
-    def __process_problem_type_data(self, df: pd.DataFrame) -> list[list[float]]:
-        match self.problem_type:
-            case 'regression':
-                return self.__treat_regression_data(df)
-            case 'binary_class':
-                return self.__treat_binary_class_data(df)
-            case 'multi_class':
-                return self.__treat_multi_class_data(df)
-            case _:
-                raise Exception('Unknown problem type. DataHandler was unable to process problem_type dataframe.')
-
-    def __treat_regression_data(self, df: pd.DataFrame) -> list[list[float]]:
+    def __get_x_processed_data(self, df: pd.DataFrame) -> list[list[float]]:
         dataframe = df.copy().drop(columns=self.y_target_columns)
 
-        # Perform data manipulations
+        dataframe_scaled = self.x_scaler.fit_transform(dataframe)
 
-        return dataframe.values.tolist()
+        return dataframe_scaled.tolist()
 
-    def __treat_binary_class_data(self, df: pd.DataFrame) -> list[list[float]]:
-        dataframe = df.copy().drop(columns=self.y_target_columns)
-
-        # Perform data manipulations
-
-        return dataframe.values.tolist()
-
-    def __treat_multi_class_data(self, df: pd.DataFrame) -> list[list[float]]:
-        dataframe = df.copy().drop(columns=self.y_target_columns)
-
-        # Perform data manipulations
-
-        return dataframe.values.tolist()
-
-    def __get_y_target_columns_values(self, df: pd.DataFrame = None):
-        return {target_column: df[target_column].values.tolist() for target_column in self.y_target_columns}
+    def __get_y_targets_processed_data(self, df: pd.DataFrame = None):
+        return {target_column: self.y_scaler.fit_transform(df[target_column].values.reshape(-1, 1)).flatten().tolist() if self.problem_type == 'regression' else df[target_column].values.tolist() for target_column in self.y_target_columns}
